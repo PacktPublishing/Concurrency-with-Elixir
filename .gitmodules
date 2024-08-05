@@ -1,0 +1,3 @@
+[submodule "ping"]
+	path = ping
+	url = https://github.com/rugyoga/ping
