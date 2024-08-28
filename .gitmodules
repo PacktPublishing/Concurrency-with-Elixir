@@ -1,3 +1,6 @@
 [submodule "ping"]
 	path = ping
 	url = https://github.com/rugyoga/ping
+[submodule "geosearch"]
+	path = geosearch
+	url = https://github.com/rugyoga/geosearch
