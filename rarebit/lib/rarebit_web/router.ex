@@ -40,7 +40,16 @@ defmodule RarebitWeb.Router do
       live_dashboard "/dashboard",
         metrics: RarebitWeb.Telemetry,
         additional_pages: [
-          broadway: {BroadwayDashboard, pipelines: [Rarebit.Pipelines.Simple]}
+          broadway: {
+            BroadwayDashboard,
+            # The pipeline names must match the process names set up in application.ex
+            pipelines: [
+              Rarebit.Pipelines.Simple,
+              :doubles,
+              :triples,
+              :pangrams
+            ]
+          }
         ]
 
       forward "/mailbox", Plug.Swoosh.MailboxPreview

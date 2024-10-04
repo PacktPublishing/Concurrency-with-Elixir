@@ -3,6 +3,7 @@ defmodule Rarebit.Codes do
   This module is dedicated to building the message payloads (the "codes") and
   publishing them to the queue for consumption by Broadway.
   """
+  require Logger
 
   @doc """
   Generates a message payload
@@ -18,31 +19,44 @@ defmodule Rarebit.Codes do
   end
 
   @doc """
-  Calculates headers for the given payload
+  Calculates headers for the given payload so we can demonstrate routing in a
+  headers exchange
+
+  - pangram: true when prefix contains all 3 letters, e.g. ABC or CBA
+  - double: true when prefix contains 2 of the same letter, e.g. AAB
+  - triple: true when prefix contains 3 of the same letter, e.g. AAA
   """
   def headers(<<prefix::binary-size(3), _rest::binary>> = _payload) do
     freq_vals = prefix |> String.split("", trim: true) |> Enum.frequencies() |> Map.values()
 
     []
+    |> Kernel.++(pangram_header(freq_vals))
     |> Kernel.++(double_header(freq_vals))
     |> Kernel.++(triple_header(freq_vals))
-
-    # is triple?
-    # is double?
-    # String.split("CAA", "", trim: true) |> Enum.frequencies() |> Map.values() |> Enum.member?(3)
   end
 
-  defp double_header(freq_vals) do
-    if Enum.max(freq_vals) >= 2 do
-      [{"double", :binary, "true"}]
+  # Sets header of pangram: true if the message prefix contains one of each letter, e.g. ABC or BAC
+  defp pangram_header(freq_vals) do
+    if Enum.all?(freq_vals, &(&1 == 1)) do
+      [{"pangram", :longstr, "true"}]
     else
       []
     end
   end
 
+  # Sets header of double: true if the message prefix contains 2 of the same letter, e.g. AAB or CBC
+  defp double_header(freq_vals) do
+    if Enum.max(freq_vals) >= 2 do
+      [{"double", :longstr, "true"}]
+    else
+      []
+    end
+  end
+
+  # Sets header of triple: true if the message prefix contains 3 of the same letter, e.g. AAA
   defp triple_header(freq_vals) do
     if Enum.max(freq_vals) >= 3 do
-      [{"triple", :binary, "true"}]
+      [{"triple", :longstr, "true"}]
     else
       []
     end
@@ -72,6 +86,7 @@ defmodule Rarebit.Codes do
   ## Examples
 
       iex> Rarebit.Codes.publish_multiple("", "msgs", 60)
+      iex> Rarebit.Codes.publish_multiple("headers_exchange", "", 100)
   """
   def publish_multiple(exchange, routing_key, n \\ 50) do
     with {:ok, connection} <- AMQP.Connection.open(Application.get_env(:amqp, :connections)),
@@ -79,6 +94,7 @@ defmodule Rarebit.Codes do
       Enum.each(1..n, fn _ ->
         payload = payload()
         headers = headers(payload)
+        Logger.debug("Publishing message #{payload} headers #{inspect(headers)}")
         AMQP.Basic.publish(channel, exchange, routing_key, payload, headers: headers)
       end)
     end

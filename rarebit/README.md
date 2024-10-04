@@ -1,18 +1,38 @@
 # Rarebit
 
-To start your Phoenix server:
+Example of Broadway pipelines consuming messages from RabbitMQ.
 
-  * Run `mix setup` to install and setup dependencies
-  * Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+Installing RabbitMQ via Docker:
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+```sh
+docker pull rabbitmq:3.13.7-management
+docker run -p 5672:5672 -p 15672:15672 --name rabbitmq -d rabbitmq:3.13.7-management
+```
 
-Ready to run in production? Please [check our deployment guides](https://hexdocs.pm/phoenix/deployment.html).
+Sending messages into the `msgs` queue to be consumed by the `Rarebit.Pipelines.Simple` pipeline:
 
-## Learn more
+```iex
+iex> {:ok, connection} = AMQP.Connection.open()
+iex> {:ok, channel} = AMQP.Channel.open(connection)
+iex> AMQP.Basic.publish(channel, "", "msgs", "Hello World!")
+```
 
-  * Official website: https://www.phoenixframework.org/
-  * Guides: https://hexdocs.pm/phoenix/overview.html
-  * Docs: https://hexdocs.pm/phoenix
-  * Forum: https://elixirforum.com/c/phoenix-forum
-  * Source: https://github.com/phoenixframework/phoenix
+## Execution Times: Processing 60 messages
+
+| Producers Concurrency | Processors Concurrency | Batch Size | Batch Concurrency | Approx. Elapsed Time |
+| :-------------------- | :--------------------- | :--------- | :---------------- | :------------------- |
+| 1                     | 1                      | 1          | 1                 | 1:40 |
+| 2                     | 1                      | 1          | 1                 | 1:32 |
+| 2                     | 2                      | 1          | 1                 | 1:04 |
+| 2                     | 8                      | 1          | 1                 | 1:00 |
+| 2                     | 1                      | 10         | 1                 | 1:02 |
+| 2                     | 1                      | 1          | 10                | 1:00 |
+| 2                     | 1                      | 10         | 10                | 1:02 |
+| 2                     | 8                      | 10         | 10                | 0:08 |
+| 2                     | 8                      | 50         | 10                | 0:08 |
+| 2                     | 20                     | 10         | 10                | 0:04 |
+| 10                    | 20                     | 50         | 10                | 0:08 |
+| 50                    | 50                     | 50         | 50                | 0:06 |
+| 4                     | 8                      | 50         | 10                | 0:08 |
+| 4                     | 20                     | 50         | 50                | 0:04 |
+| 4                     | 50                     | 50         | 50                | 0:06 |

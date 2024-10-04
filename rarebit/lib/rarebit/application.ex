@@ -7,9 +7,62 @@ defmodule Rarebit.Application do
 
   @impl true
   def start(_type, _args) do
+    :ok =
+      Rarebit.setup_rabbitmq("headers_exchange", :headers, "fallback_exchange", :fanout, [
+        {"doubles", [{"double", :longstr, "true"}, {"x-match", :longstr, "all"}]},
+        {"triples", [{"triple", :longstr, "true"}, {"x-match", :longstr, "all"}]},
+        {"pangrams", [{"pangram", :longstr, "true"}, {"x-match", :longstr, "all"}]}
+      ])
+
     children = [
       # Broadway pipelines
       Rarebit.Pipelines.Simple,
+      Supervisor.child_spec(
+        {Rarebit.Pipelines.FileAppender,
+         [
+           name: :doubles,
+           queue: "doubles",
+           output_dir: "tmp/doubles"
+         ]},
+        id: :doubles
+      ),
+      Supervisor.child_spec(
+        {Rarebit.Pipelines.FileAppender,
+         [
+           name: :triples,
+           queue: "triples",
+           output_dir: "tmp/triples"
+         ]},
+        id: :triples
+      ),
+      Supervisor.child_spec(
+        {Rarebit.Pipelines.FileAppender,
+         [
+           name: :pangrams,
+           queue: "pangrams",
+           output_dir: "tmp/pangrams"
+         ]},
+        id: :pangrams
+      ),
+      # {Rarebit.Pipelines.FileAppender,
+      #  [
+      #    name: :doubles,
+      #    queue: "doubles",
+      #    output_dir: "tmp/doubles"
+      #  ]},
+      # {Rarebit.Pipelines.FileAppender,
+      #  [
+      #    name: :triples,
+      #    queue: "triples",
+      #    output_dir: "tmp/triples"
+      #  ]},
+      # {Rarebit.Pipelines.FileAppender,
+      #  [
+      #    name: :pangrams,
+      #    queue: "pangrams",
+      #    output_dir: "tmp/pangrams"
+      #  ]},
+
       # Standard Phoenix stuff below...
       RarebitWeb.Telemetry,
       Rarebit.Repo,

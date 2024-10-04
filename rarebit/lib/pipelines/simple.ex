@@ -8,6 +8,8 @@ defmodule Rarebit.Pipelines.Simple do
   alias Broadway.Message
 
   def start_link(_opts) do
+    queue = "msgs"
+
     # Number of connections to RabbitMQ
     producer_concurrency = 2
     # Number of handle_message processes
@@ -22,12 +24,12 @@ defmodule Rarebit.Pipelines.Simple do
       producer: [
         module: {
           BroadwayRabbitMQ.Producer,
-          queue: "msgs",
+          queue: queue,
           qos: [
             prefetch_count: 50
           ],
           on_failure: :reject,
-          after_connect: &declare_rabbitmq_topology/1
+          after_connect: &declare_rabbitmq_topology(&1, queue)
         },
         concurrency: producer_concurrency
       ],
@@ -58,8 +60,8 @@ defmodule Rarebit.Pipelines.Simple do
 
   # This important block sets up the necessary RabbitMQ exchanges, something like
   # running database migrations.
-  defp declare_rabbitmq_topology(amqp_channel) do
-    with {:ok, _} <- AMQP.Queue.declare(amqp_channel, "msgs", durable: true) do
+  defp declare_rabbitmq_topology(amqp_channel, queue) do
+    with {:ok, _} <- AMQP.Queue.declare(amqp_channel, queue, durable: true) do
       :ok
     end
   end
