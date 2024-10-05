@@ -80,23 +80,23 @@ defmodule Rarebit.Codes do
   """
   def unique_val, do: UUID.uuid4()
 
-  @doc """
-  Publishes multiple messages to the given exchange using the given routing key.
+  # @doc """
+  # Publishes multiple messages to the given exchange using the given routing key.
 
-  ## Examples
+  # ## Examples
 
-      iex> Rarebit.Codes.publish_multiple("", "msgs", 60)
-      iex> Rarebit.Codes.publish_multiple("headers_exchange", "", 100)
-  """
-  def publish_multiple(exchange, routing_key, n \\ 50) do
-    with {:ok, connection} <- AMQP.Connection.open(Application.get_env(:amqp, :connections)),
-         {:ok, channel} <- AMQP.Channel.open(connection) do
-      Enum.each(1..n, fn _ ->
-        payload = payload()
-        headers = headers(payload)
-        Logger.debug("Publishing message #{payload} headers #{inspect(headers)}")
-        AMQP.Basic.publish(channel, exchange, routing_key, payload, headers: headers)
-      end)
-    end
-  end
+  #     iex> Rarebit.Codes.publish_multiple("", "msgs", 60)
+  #     iex> Rarebit.Codes.publish_multiple("headers_exchange", "", 100)
+  # """
+  # def publish_multiple(exchange, routing_key, n \\ 50) do
+  #   with {:ok, connection} <- AMQP.Connection.open(Application.get_env(:amqp, :connections)),
+  #        {:ok, channel} <- AMQP.Channel.open(connection) do
+  #     Enum.each(1..n, fn _ ->
+  #       payload = payload()
+  #       headers = headers(payload)
+  #       Logger.debug("Publishing message #{payload} headers #{inspect(headers)}")
+  #       AMQP.Basic.publish(channel, exchange, routing_key, payload, headers: headers)
+  #     end)
+  #   end
+  # end
 end

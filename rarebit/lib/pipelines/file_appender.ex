@@ -68,8 +68,13 @@ defmodule Rarebit.Pipelines.FileAppender do
   @impl true
   def handle_message(_, %Message{data: payload} = message, _) do
     case Map.fetch(@batcher_map, String.first(payload)) do
-      {:ok, batcher} -> Message.put_batcher(message, batcher)
-      :error -> Message.failed(message, "First character must be A, B, or C")
+      {:ok, batcher} ->
+        Message.put_batcher(message, batcher)
+
+      :error ->
+        Logger.error("First character must be A, B, or C")
+        raise "First character must be A, B, or C"
+        # Message.failed(message, "First character must be A, B, or C")
     end
   end
 

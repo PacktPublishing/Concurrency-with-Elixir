@@ -36,3 +36,9 @@ iex> AMQP.Basic.publish(channel, "", "msgs", "Hello World!")
 | 4                     | 8                      | 50         | 10                | 0:08 |
 | 4                     | 20                     | 50         | 50                | 0:04 |
 | 4                     | 50                     | 50         | 50                | 0:06 |
+
+## Questions
+
+What happens if you publish a message to a headers queue and no bindings match?
+
+If a message cannot be routed to any queue (for example, because there are no bindings for the exchange it was published to) it is either dropped or returned to the publisher, depending on message attributes the publisher has set.
