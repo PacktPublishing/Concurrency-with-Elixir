@@ -16,6 +16,9 @@ defmodule Rarebit.Pipelines.Inspection do
   require Logger
   alias Broadway.Message
 
+  # Avoids the need to wrap children in `Supervisor.child_spec/2`
+  def child_spec(args), do: %{id: args[:name], start: {__MODULE__, :start_link, [args]}}
+
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
     queue = Keyword.fetch!(opts, :queue)
@@ -52,13 +55,13 @@ defmodule Rarebit.Pipelines.Inspection do
       batchers: [
         default: [batch_size: batch_size, batch_timeout: 1500, concurrency: batch_concurrency]
       ],
-      context: %{output_dir: output_dir}
+      context: %{output_dir: output_dir, queue: queue}
     )
   end
 
   @impl true
-  def handle_message(_, %Message{data: data} = message, _) do
-    Logger.debug("Receiving misfit message: #{inspect(data)}")
+  def handle_message(_, %Message{data: data} = message, %{queue: queue}) do
+    Logger.debug("Receiving message for inspection on queue #{queue}: #{inspect(data)}")
     message
   end
 

@@ -17,6 +17,9 @@ defmodule Rarebit.Pipelines.FileAppender do
   require Logger
   alias Broadway.Message
 
+  # Avoids the need to wrap children in `Supervisor.child_spec/2`
+  def child_spec(args), do: %{id: args[:name], start: {__MODULE__, :start_link, [args]}}
+
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
     # exchange = Keyword.fetch!(opts, :exchange)
@@ -60,21 +63,22 @@ defmodule Rarebit.Pipelines.FileAppender do
         b: [batch_size: batch_size, batch_timeout: 1500, concurrency: batch_concurrency],
         c: [batch_size: batch_size, batch_timeout: 1500, concurrency: batch_concurrency]
       ],
-      context: %{output_dir: output_dir}
+      context: %{output_dir: output_dir, name: name}
     )
   end
 
   @batcher_map %{"A" => :a, "B" => :b, "C" => :c}
   @impl true
-  def handle_message(_, %Message{data: payload} = message, _) do
+  def handle_message(_, %Message{data: payload} = message, %{name: name}) do
+    Logger.debug("Handling message in #{__MODULE__} (#{name}")
+
     case Map.fetch(@batcher_map, String.first(payload)) do
       {:ok, batcher} ->
         Message.put_batcher(message, batcher)
 
       :error ->
         Logger.error("First character must be A, B, or C")
-        raise "First character must be A, B, or C"
-        # Message.failed(message, "First character must be A, B, or C")
+        Message.failed(message, "First character must be A, B, or C")
     end
   end
 

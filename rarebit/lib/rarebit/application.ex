@@ -1,47 +1,59 @@
 defmodule Rarebit.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
-  @moduledoc false
+  @moduledoc "Set up the Rarebit supervision tree and prepare the RabbitMQ topology"
 
   use Application
 
+  require Logger
+
   @impl true
   def start(_type, _args) do
-    :ok = setup_rabbitmq()
+    :ok = declare_rabbitmq_topology()
+
+    # {:ok, connection} = AMQP.Connection.open()
+    # {:ok, channel} = AMQP.Channel.open(connection)
+
+    # # Declare exchanges
+    # :ok = AMQP.Exchange.declare(channel, "my_exchange", :fanout, durable: true)
+    # :ok = AMQP.Exchange.declare(channel, "my_exchange.dlx", :fanout, durable: true)
+
+    # # Define and bind queues within the exchange depending on your needs
+    # {:ok, _} = AMQP.Queue.declare(channel, "my_queue.dlx", durable: true)
+    # :ok = AMQP.Queue.bind(channel, "my_queue.dlx", "my_exchange.dlx", [])
+
+    # {:ok, _} =
+    #   AMQP.Queue.declare(channel, "my_queue",
+    #     durable: true,
+    #     arguments: [
+    #       {"x-dead-letter-exchange", :longstr, "my_exchange.dlx"},
+    #       {"x-dead-letter-routing-key", :longstr, "my_queue.dlx"}
+    #     ]
+    #   )
+
+    # :ok = AMQP.Queue.bind(channel, "my_queue", "my_exchange", [])
 
     children = [
+      Rarebit,
       # Broadway pipelines
-      # Rarebit.Pipelines.Simple,
-      Supervisor.child_spec(
-        {Rarebit.Pipelines.FileAppender,
-         [
-           name: :doubles,
-           queue: "doubles",
-           output_dir: "tmp/doubles"
-         ]},
-        id: :doubles
-      ),
-      Supervisor.child_spec(
-        {Rarebit.Pipelines.FileAppender,
-         [
-           name: :triples,
-           queue: "triples",
-           output_dir: "tmp/triples"
-         ]},
-        id: :triples
-      ),
-      Supervisor.child_spec(
-        {Rarebit.Pipelines.FileAppender,
-         [
-           name: :pangrams,
-           queue: "pangrams",
-           output_dir: "tmp/pangrams"
-         ]},
-        id: :pangrams
-      ),
+      Rarebit.Pipelines.Simple,
+      # Supervisor.child_spec(
+      {Rarebit.Pipelines.FileAppender,
+       [name: :doubles, queue: "doubles", output_dir: "tmp/doubles"]},
+      #   id: :doubles
+      # ),
+      # Supervisor.child_spec(
+      {Rarebit.Pipelines.FileAppender,
+       [name: :triples, queue: "triples", output_dir: "tmp/triples"]},
+      #   id: :triples
+      # ),
+      # Supervisor.child_spec(
+      {Rarebit.Pipelines.FileAppender,
+       [name: :pangrams, queue: "pangrams", output_dir: "tmp/pangrams"]},
+      #   id: :pangrams
+      # ),
       {Rarebit.Pipelines.Inspection, [queue: "misfits", output_dir: "tmp/misfits"]},
-      # {Rarebit.Pipelines.Inspection, [queue: "my_queue.dlx", output_dir: "tmp/misfits"]},
-      MyPipeline,
+
+      # MyPipeline,
+      # DeadPipeline,
       # {Rarebit.Pipelines.FileAppender,
       #  [
       #    name: :doubles,
@@ -88,7 +100,8 @@ defmodule Rarebit.Application do
   Explicitly setup our exchanges and queues -- this can be organized into further
   functions, but it is done here mostly long-form to make it easier to see the syntax
   """
-  def setup_rabbitmq do
+  def declare_rabbitmq_topology do
+    Logger.info("Setting up RabbitMQ Topology...")
     primary_exchange = "headers_exchange"
     alt_exchange = "fallback_exchange"
 
@@ -100,6 +113,7 @@ defmodule Rarebit.Application do
 
     {:ok, connection} = AMQP.Connection.open(Application.get_env(:amqp, :connections))
     {:ok, channel} = AMQP.Channel.open(connection)
+
     # Setup the alternate exchange
     :ok = AMQP.Exchange.declare(channel, alt_exchange, :fanout, durable: true)
 

@@ -11,7 +11,7 @@ docker run -p 5672:5672 -p 15672:15672 --name rabbitmq -d rabbitmq:3.13.7-manage
 
 Sending messages into the `msgs` queue to be consumed by the `Rarebit.Pipelines.Simple` pipeline:
 
-```iex
+```elixir
 iex> {:ok, connection} = AMQP.Connection.open()
 iex> {:ok, channel} = AMQP.Channel.open(connection)
 iex> AMQP.Basic.publish(channel, "", "msgs", "Hello World!")

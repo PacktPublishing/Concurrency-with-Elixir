@@ -1,8 +1,20 @@
 defmodule Rarebit do
   @moduledoc """
-  Rarebit is an example of using Broadway with RabbitMQ
+  Rarebit is an instructional example of using Broadway with RabbitMQ.
+  Interactions with RabbitMQ are wrapped in a GenServer.  Events are logged for
+  visibility.
   """
+  use GenServer
+
   require Logger
+
+  def start_link(_args) do
+    GenServer.start_link(
+      __MODULE__,
+      Application.fetch_env!(:amqp, :connections),
+      name: __MODULE__
+    )
+  end
 
   @doc """
   Helper function to publish a message to the given exchange / routing_key with
@@ -10,7 +22,7 @@ defmodule Rarebit do
 
   ## Examples
 
-  Send a normal message sent with a header that properly describes the message content:
+  Send a normal message sent with proper headers that describes the message content:
       iex> Rarebit.publish("headers_exchange", "", "ABC-example", headers: [{"pangram", :longstr, "true"}])
 
   Send a message without proper headers. The exchange can't route it, so it gets sent to the
@@ -24,14 +36,11 @@ defmodule Rarebit do
   Send a message directly to a queue via the direct exchange.
       iex> Rarebit.publish("", "triples", "ABC sent directly to a queue via the direct exchange")
 
-      iex> Rarebit.publish("", "my_queue", "dead-letter?")
-      iex> Rarebit.publish("alternate_exchage", "", "fanout?")
+  Send a message to the fallback_exchange, which fans the messages out to all bound queues.
+      iex> Rarebit.publish("fallback_exchange", "", "fanout?")
   """
   def publish(exchange, routing_key, payload, opts \\ []) do
-    with {:ok, connection} <- AMQP.Connection.open(Application.get_env(:amqp, :connections)),
-         {:ok, channel} <- AMQP.Channel.open(connection) do
-      AMQP.Basic.publish(channel, exchange, routing_key, payload, opts)
-    end
+    GenServer.call(__MODULE__, {:publish, exchange, routing_key, payload, opts})
   end
 
   @doc """
@@ -44,14 +53,34 @@ defmodule Rarebit do
       iex> Rarebit.publish_codes("headers_exchange", "", 100)
   """
   def publish_codes(exchange, routing_key, n \\ 50) do
-    with {:ok, connection} <- AMQP.Connection.open(Application.get_env(:amqp, :connections)),
+    Enum.each(1..n, fn _ ->
+      payload = Rarebit.Codes.payload()
+      headers = Rarebit.Codes.headers(payload)
+      GenServer.call(__MODULE__, {:publish, exchange, routing_key, payload, headers: headers})
+    end)
+  end
+
+  @impl true
+  def init(config) do
+    with {:ok, connection} <- AMQP.Connection.open(config),
          {:ok, channel} <- AMQP.Channel.open(connection) do
-      Enum.each(1..n, fn _ ->
-        payload = Rarebit.Codes.payload()
-        headers = Rarebit.Codes.headers(payload)
-        Logger.debug("Publishing message #{payload} headers #{inspect(headers)}")
-        AMQP.Basic.publish(channel, exchange, routing_key, payload, headers: headers)
-      end)
+      {:ok, %{channel: channel}}
     end
+  end
+
+  @impl true
+  def handle_call(
+        {:publish, exchange, routing_key, payload, opts},
+        _from,
+        %{channel: channel} = state
+      ) do
+    immutable_opts = [
+      app_id: "rarebit",
+      timestamp: DateTime.to_unix(DateTime.utc_now())
+    ]
+
+    opts = Keyword.merge(opts, immutable_opts)
+    Logger.debug("Publishing message '#{payload}' with opts #{inspect(opts)}")
+    {:reply, AMQP.Basic.publish(channel, exchange, routing_key, payload, opts), state}
   end
 end
