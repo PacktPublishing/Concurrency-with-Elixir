@@ -5,10 +5,6 @@ defmodule Rarebit.Pipelines.FileAppender do
   ## Options
 
   - `name` (usually an atom) a valid name for this process
-  - `exchange` (string) the name of the exchange.
-  - `alt_exchange_type` one of `:direct`, `:fanout`, `:topic`, `:headers`
-  - `alt_exchange` (string) the name of the exchange.
-  - `exchange_type` one of `:direct`, `:fanout`, `:topic`, `:headers`
   - `queue` (string) name of the queue to which this Broadway instance should subscribe
   - `output_dir` path to a directory where this pipeline may create directories and files
   """
@@ -22,25 +18,10 @@ defmodule Rarebit.Pipelines.FileAppender do
 
   def start_link(opts) do
     name = Keyword.get(opts, :name, __MODULE__)
-    # exchange = Keyword.fetch!(opts, :exchange)
-    # exchange_type = Keyword.fetch!(opts, :exchange_type)
-    # alt_exchange = Keyword.fetch!(opts, :alt_exchange)
-    # alt_exchange_type = Keyword.fetch!(opts, :alt_exchange_type)
     queue = Keyword.fetch!(opts, :queue)
-    # bindings = Keyword.fetch!(opts, :bindings)
-
     output_dir = Keyword.fetch!(opts, :output_dir)
 
     File.mkdir_p!(output_dir)
-
-    # Number of connections to RabbitMQ
-    producer_concurrency = 2
-    # Number of handle_message processes
-    processor_concurrency = 10
-    # ~ size of each batch
-    batch_size = 50
-    # Number of batch processes
-    batch_concurrency = 1
 
     Broadway.start_link(__MODULE__,
       name: name,
@@ -53,15 +34,15 @@ defmodule Rarebit.Pipelines.FileAppender do
           ],
           on_failure: :reject
         },
-        concurrency: producer_concurrency
+        concurrency: 2
       ],
       processors: [
-        default: [concurrency: processor_concurrency]
+        default: [concurrency: 10]
       ],
       batchers: [
-        a: [batch_size: batch_size, batch_timeout: 1500, concurrency: batch_concurrency],
-        b: [batch_size: batch_size, batch_timeout: 1500, concurrency: batch_concurrency],
-        c: [batch_size: batch_size, batch_timeout: 1500, concurrency: batch_concurrency]
+        a: [batch_size: 50, batch_timeout: 1500, concurrency: 1],
+        b: [batch_size: 50, batch_timeout: 1500, concurrency: 1],
+        c: [batch_size: 50, batch_timeout: 1500, concurrency: 1]
       ],
       context: %{output_dir: output_dir, name: name}
     )

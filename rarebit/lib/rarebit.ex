@@ -29,9 +29,13 @@ defmodule Rarebit do
   alternate exchange. Think of it like a 404.
       iex> Rarebit.publish("headers_exchange", "", "ABC-no-headers")
 
-  Send a message with a bad payload. The message can be routed because it has proper headers,
-  but Broadway will reject the message because it has a bad payload.
+  Send a message with a bad payload to trigger the dead-letter functionality.
+  The message can be routed to a queue because it has proper headers, but our Broadway pipeline
+  will reject the message because it has a bad payload.
       iex> Rarebit.publish("headers_exchange", "", "EFG-invalid-payload", headers: [{"pangram", :longstr, "true"}])
+
+  Send a message lacking necessary headers so it gets routed to the alternate exchange.
+      iex> Rarebit.publish("headers_exchange", "", "ABC:lacking headers", headers: [{"color", :longstr, "blue"}])
 
   Send a message directly to a queue via the direct exchange.
       iex> Rarebit.publish("", "triples", "ABC sent directly to a queue via the direct exchange")
